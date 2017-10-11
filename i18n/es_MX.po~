@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 10.0+e-20170815\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-10-07 10:21+0000\n"
-"PO-Revision-Date: 2017-10-07 10:21+0000\n"
+"POT-Creation-Date: 2017-10-10 22:27+0000\n"
+"PO-Revision-Date: 2017-10-10 22:27+0000\n"
 "Last-Translator: <>\n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -18,12 +18,12 @@ msgstr ""
 #. module: mrp_ii
 #: model:ir.model.fields,field_description:mrp_ii.field_bill_material_ii_dis_product_in
 msgid "Availability Incoming Product"
-msgstr "Availability Incoming Product"
+msgstr "Productos Entrantes Disponibles"
 
 #. module: mrp_ii
 #: model:ir.model.fields,field_description:mrp_ii.field_bill_material_ii_dis_product
 msgid "Availability Product"
-msgstr "Availability Product"
+msgstr "Productos Disponibles"
 
 #. module: mrp_ii
 #: model:ir.model.fields,field_description:mrp_ii.field_mrp_ii_bill_material_ii_ids
@@ -34,7 +34,12 @@ msgstr "LdM"
 #. module: mrp_ii
 #: model:ir.ui.view,arch_db:mrp_ii.mrp_ii_view
 msgid "Calculate"
-msgstr "Calculate"
+msgstr "Calcular"
+
+#. module: mrp_ii
+#: model:ir.model.fields,field_description:mrp_ii.field_stock_move_compromise_qty_move
+msgid "Compromise"
+msgstr "Comprometer"
 
 #. module: mrp_ii
 #: model:ir.model.fields,field_description:mrp_ii.field_bill_material_ii_create_uid
@@ -120,6 +125,11 @@ msgstr "Cantidad de los productos que está planificado que llegue.\n"
 "En un contexto de una sola ubicación de existencias, esto incluye los bienes almacenados en esta ubicación, o cualquiera de sus hijas.\n"
 "En un contexto de un solo almacén, esto incluye los bienes almacenados en la ubicación de existencias de ese almacén, o cualquiera de sus hijas.\n"
 "En cualquier otro caso, esto incluye los bienes almacenados en cualquier ubicación de existencias de tipo 'Interna'."
+
+#. module: mrp_ii
+#: model:ir.model,name:mrp_ii.model_stock_move
+msgid "Stock Move"
+msgstr "Movimiento de Inventario"
 
 #. module: mrp_ii
 #: model:ir.model.fields,field_description:mrp_ii.field_bill_material_ii_total_compromise_product

@@ -20,21 +20,24 @@
 #
 ###############################################################################
 
-{
-    'name': "MRP II",
-    'summary': """
-    """,
-    'description': """
-    """,
-    'author': "Humanytek",
-    'website': "http://www.humanytek.com",
-    'category': 'Manufacturing',
-    'version': '1.0.0',
-    'depends': ['mrp_workorder', 'sale', 'product_compromise'],
-    'data': [
-        'view/mrp_ii_view.xml',
-        'view/stock_view.xml'
-    ],
-    'demo': [
-    ],
-}
+from odoo import api, fields, models
+import logging
+_logger = logging.getLogger(__name__)
+
+
+class StockMove(models.Model):
+    _name = "stock.move"
+    _inherit = 'stock.move'
+
+    compromise_qty_move = fields.Float('Compromise',
+                        compute='_compute_compromise_qty_move', readonly=True)
+
+    @api.one
+    def _compute_compromise_qty_move(self):
+        ProductCompromise = self.env['product.compromise']
+        product_compromises = ProductCompromise.search([
+                            ('stock_move_in_id.id', '=', self.id),
+                            ('state', '=', 'assigned')])
+        self.compromise_qty_move = sum([product_compromise.qty_compromise
+                                for product_compromise in
+                                product_compromises])
