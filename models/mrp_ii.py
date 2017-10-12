@@ -32,14 +32,43 @@ class MrpIi(models.TransientModel):
     def calculate(self):
         MrpBom = self.env['mrp.bom']
         BillMaterialIi = self.env['bill.material.ii']
+        BillMaterialIiSale = self.env['bill.material.ii.sale']
+        BillMaterialIiPurchase = self.env['bill.material.ii.purchase']
+        ProductCompromise = self.env['product.compromise']
+        StockMove = self.env['stock.move']
         BillMaterialIi.search([]).unlink()
         mrp_boms = MrpBom.search([
                         ('product_tmpl_id.id', '=', self.product_id.id)])
+
         for mrp_bom in mrp_boms:
             for line in mrp_bom.bom_line_ids:
-                BillMaterialIi.create({'product_id': line.product_id.id,
+                bill_id = BillMaterialIi.create({
+                            'product_id': line.product_id.id,
                             'mrp_ii_id': self.id,
                             'qty_product': self.qty_product * line.product_qty})
+                stock_moves = StockMove.search([
+                                ('product_id.id', '=', line.product_id.id),
+                                ('state', 'in', ('assigned', 'confirmed')),
+                                ('raw_material_production_id', '!=', False)])
+                for move in stock_moves:
+                    BillMaterialIiSale.create({
+                                'bill_material_ii_id': bill_id.id,
+                                'move_id': move.id})
+
+                    product_compromises = ProductCompromise.search([
+                                    ('product_id.id', '=', line.product_id.id),
+                                    ('state', '=', 'assigned'),
+                                    ('stock_move_out_id', '=', move.id)])
+                    for product_compromise in product_compromises:
+                        _logger.info('llllllllllllllllllllllllllllllllllllllllllll')
+                        _logger.info(bill_id.id)
+                        _logger.info(move.id)
+                        _logger.info(product_compromise.stock_move_in_id.id)
+                        BillMaterialIiPurchase.create({
+                            'bill_material_ii_id': bill_id.id,
+                            'move_id': move.id,
+                            'move_in_id': product_compromise.stock_move_in_id.id})
+
         return {
                 'type': 'ir.actions.act_window',
                 'res_model': 'mrp.ii',
@@ -61,8 +90,14 @@ class BillMaterialIi(models.TransientModel):
     _name = "bill.material.ii"
 
     mrp_ii_id = fields.Many2one('mrp.ii', 'MRP II')
-    product_id = fields.Many2one('product.product', 'Product')
-    qty_product = fields.Float('Quantity')
+    product_id = fields.Many2one('product.product', 'Product', readonly=True)
+    qty_product = fields.Float('Quantity', readonly=True)
+    bill_material_ii_sale_ids = fields.One2many('bill.material.ii.sale',
+                            'bill_material_ii_id',
+                            'BoM-Sale', readonly=True)
+    bill_material_ii_purchase_ids = fields.One2many('bill.material.ii.purchase',
+                            'bill_material_ii_id',
+                            'BoM-Purchase', readonly=True)
     product_qty_product = fields.Float(related='product_id.qty_available',
                             string='Total Product', readonly=True, store=False)
 
@@ -114,3 +149,61 @@ class BillMaterialIi(models.TransientModel):
     @api.one
     def _compute_dis_product(self):
         self.dis_product = self.product_qty_product - self.total_reserved_product
+
+
+class BillMaterialIiSale(models.TransientModel):
+    _name = "bill.material.ii.sale"
+
+    bill_material_ii_id = fields.Many2one('bill.material.ii', 'MRP II')
+    move_id = fields.Many2one('stock.move', 'Move', required=True)
+    product_qty = fields.Float(related='move_id.product_uom_qty',
+                          string='Quantity', readonly=True, store=False)
+    product_reserved_qty = fields.Float(related='move_id.reserved_availability',
+                          string='Quantity Reserved',
+                          readonly=True, store=False)
+    sale_id = fields.Many2one(
+                        related='move_id.raw_material_production_id.sale_id',
+                        string='Sale Order', readonly=True, store=False)
+    partner_id = fields.Many2one(
+                        related='move_id.raw_material_production_id.partner_id',
+                        string='Customer', readonly=True, store=False)
+
+
+class BillMaterialIiPurchase(models.TransientModel):
+    _name = "bill.material.ii.purchase"
+
+    bill_material_ii_id = fields.Many2one('bill.material.ii', 'MRP II')
+    move_id = fields.Many2one('stock.move', 'Move', required=True)
+    move_in_id = fields.Many2one('stock.move', 'Move In', required=True)
+
+    product_qty = fields.Float(related='move_id.product_uom_qty',
+                          string='Quantity', readonly=True, store=False)
+    #product_reserved_qty = fields.Float(related='move_id.reserved_availability',
+                          #string='Quantity Reserved',
+                          #readonly=True, store=False)
+    sale_id = fields.Many2one(
+                        related='move_id.raw_material_production_id.sale_id',
+                        string='Sale Order', readonly=True, store=False)
+    partner_id = fields.Many2one(
+                        related='move_id.raw_material_production_id.partner_id',
+                        string='Customer', readonly=True, store=False)
+    compromise_product = fields.Float('Compromise Product',
+                            compute='_compute_compromise_product',
+                            readonly=True, store=False)
+    picking_purchase_order = fields.Char(
+                                related='move_in_id.picking_id.origin',
+                                string='Purchase Order',
+                                readonly=True, store=False)
+
+    @api.one
+    def _compute_compromise_product(self):
+        ProductCompromise = self.env['product.compromise']
+        product_compromises = ProductCompromise.search([
+                        ('product_id.id', '=', self.move_in_id.product_id.id),
+                        ('state', '=', 'assigned'),
+                        ('stock_move_in_id', '=', self.move_in_id.id),
+                        ('stock_move_out_id', '=', self.move_id.id),
+                        ])
+        self.compromise_product = sum([product_compromise.qty_compromise
+                                for product_compromise in
+                                product_compromises])
