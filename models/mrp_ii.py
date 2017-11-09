@@ -37,19 +37,25 @@ class MrpIi(models.TransientModel):
         ProductCompromise = self.env['product.compromise']
         StockMove = self.env['stock.move']
         BillMaterialIi.search([]).unlink()
-        mrp_boms = MrpBom.search([
-                        ('product_tmpl_id.id', '=', self.product_id.id)])
+        #BUSCAR POR LISTA DE MATERIALES
+        #mrp_boms = MrpBom.search([
+                        #('product_tmpl_id.id', '=', self.product_id.id)])
 
-        for mrp_bom in mrp_boms:
-            for line in mrp_bom.bom_line_ids:
+        #for mrp_bom in mrp_boms:
+        if self.bom_id:
+            for line in self.bom_id.bom_line_ids:
                 bill_id = BillMaterialIi.create({
                             'product_id': line.product_id.id,
                             'mrp_ii_id': self.id,
                             'qty_product': self.qty_product * line.product_qty})
+                #REVISAR SI AQUI SE PUEDE BUSCAR POR UBICACION, AUN NO SE SI SEA ORIGEN O DESTINO
                 stock_moves = StockMove.search([
                                 ('product_id.id', '=', line.product_id.id),
                                 ('state', 'in', ('assigned', 'confirmed')),
-                                ('raw_material_production_id', '!=', False)])
+                                ('raw_material_production_id', '!=', False),
+                                '|',
+                                ('location_id', '=', self.location_id.id),
+                                ('location_dest_id', '=', self.location_id.id)])
                 for move in stock_moves:
                     BillMaterialIiSale.create({
                                 'bill_material_ii_id': bill_id.id,
@@ -60,10 +66,6 @@ class MrpIi(models.TransientModel):
                                     ('state', '=', 'assigned'),
                                     ('stock_move_out_id', '=', move.id)])
                     for product_compromise in product_compromises:
-                        _logger.info('llllllllllllllllllllllllllllllllllllllllllll')
-                        _logger.info(bill_id.id)
-                        _logger.info(move.id)
-                        _logger.info(product_compromise.stock_move_in_id.id)
                         BillMaterialIiPurchase.create({
                             'bill_material_ii_id': bill_id.id,
                             'move_id': move.id,
@@ -79,11 +81,20 @@ class MrpIi(models.TransientModel):
                 'target': 'new',
                 }
 
+    @api.model
+    def _get_default_location_id(self):
+        location = self.env.ref('stock.stock_location_stock',
+                                raise_if_not_found=False)
+        return location and location.id or False
+
     product_id = fields.Many2one('product.template', 'Product', required=True)
     qty_product = fields.Float('Quantity', required=True, default=1)
     bill_material_ii_ids = fields.One2many('bill.material.ii',
                             'mrp_ii_id',
                             'BoM')
+    location_id = fields.Many2one('stock.location', 'Location', required=True,
+                                default=_get_default_location_id)
+    bom_id = fields.Many2one('mrp.bom', 'BOM', required=True, )
 
 
 class BillMaterialIi(models.TransientModel):
