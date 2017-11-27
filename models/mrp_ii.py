@@ -55,7 +55,8 @@ class MrpIi(models.TransientModel):
                                 ('raw_material_production_id', '!=', False),
                                 '|',
                                 ('location_id', '=', self.location_id.id),
-                                ('location_dest_id', '=', self.location_id.id)])
+                                ('location_dest_id', '=', self.location_id.id)
+                                ])
                 for move in stock_moves:
                     BillMaterialIiSale.create({
                                 'bill_material_ii_id': bill_id.id,
@@ -109,12 +110,19 @@ class BillMaterialIi(models.TransientModel):
     bill_material_ii_purchase_ids = fields.One2many('bill.material.ii.purchase',
                             'bill_material_ii_id',
                             'BoM-Purchase', readonly=True)
-    product_qty_product = fields.Float(related='product_id.qty_available',
-                            string='Total Product', readonly=True, store=False)
+    #product_qty_product = fields.Float(related='product_id.qty_available',
+                            #string='Total Product', readonly=True, store=False)
+    product_qty_product = fields.Float('Total Product',
+                            compute='_compute_product_qty_product',
+                            readonly=True, store=False)
 
-    product_incoming_qty = fields.Float(related='product_id.incoming_qty',
-                            string='Total Incoming Product', readonly=True,
-                            store=False)
+    #product_incoming_qty = fields.Float(related='product_id.incoming_qty',
+                            #string='Total Incoming Product', readonly=True,
+                            #store=False)
+
+    product_incoming_qty = fields.Float('Total Incoming Product',
+                            compute='_compute_product_incoming_qty',
+                            readonly=True, store=False)
 
     total_compromise_product = fields.Float('Total Compromise Product',
                             compute='_compute_total_compromise_product',
@@ -134,22 +142,61 @@ class BillMaterialIi(models.TransientModel):
 
     @api.one
     def _compute_total_compromise_product(self):
+        StockMove = self.env['stock.move']
         ProductCompromise = self.env['product.compromise']
-        product_compromises = ProductCompromise.search([
+        stock_moves = StockMove.search([
                                     ('product_id.id', '=', self.product_id.id),
-                                    ('state', '=', 'assigned')])
-
-        self.total_compromise_product = sum([product_compromise.qty_compromise
-                                for product_compromise in
-                                product_compromises])
+                                    ('picking_type_id.code', '=', 'incoming'),
+                                    ('state', 'not in', ['cancel', 'done']),
+                                    ('location_dest_id', '=',
+                                        self.mrp_ii_id.location_id.id)])
+        qty = 0
+        for move in stock_moves:
+            product_compromises = ProductCompromise.search([
+                                    ('product_id.id', '=', self.product_id.id),
+                                    ('state', '=', 'assigned'),
+                                    ('stock_move_in_id', '=', move.id)])
+            for product_compromise in product_compromises:
+                qty += product_compromise.qty_compromise
+            #self.total_compromise_product = sum([product_compromise.qty_compromise
+                                #for product_compromise in
+                                #product_compromises])
+        self.total_compromise_product = qty
 
     @api.one
     def _compute_total_reserved_product(self):
         StockMove = self.env['stock.move']
         stock_moves = StockMove.search([
                                     ('product_id.id', '=', self.product_id.id),
-                                    ('state', 'in', ('assigned', 'confirmed'))])
+                                    ('state', 'in', ('assigned', 'confirmed')),
+                                    ('location_id', '=',
+                                        self.mrp_ii_id.location_id.id)])
         self.total_reserved_product = sum([stock_move.reserved_availability
+                                for stock_move in
+                                stock_moves])
+
+    @api.one
+    def _compute_product_qty_product(self):
+        StockQuant = self.env['stock.quant']
+        #StockMove = self.env['stock.move']
+        stock_quants = StockQuant.search([
+                                    ('product_id.id', '=', self.product_id.id),
+                                    ('location_id', '=',
+                                        self.mrp_ii_id.location_id.id)])
+        self.product_qty_product = sum([stock_quant.qty
+                                for stock_quant in
+                                stock_quants])
+
+    @api.one
+    def _compute_product_incoming_qty(self):
+        StockMove = self.env['stock.move']
+        stock_moves = StockMove.search([
+                                    ('product_id.id', '=', self.product_id.id),
+                                    ('picking_type_id.code', '=', 'incoming'),
+                                    ('state', 'not in', ['cancel', 'done']),
+                                    ('location_dest_id', '=',
+                                        self.mrp_ii_id.location_id.id)])
+        self.product_incoming_qty = sum([stock_move.product_uom_qty
                                 for stock_move in
                                 stock_moves])
 
