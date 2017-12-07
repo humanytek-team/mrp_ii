@@ -84,9 +84,17 @@ class MrpIi(models.TransientModel):
 
     @api.model
     def _get_default_location_id(self):
-        location = self.env.ref('stock.stock_location_stock',
-                                raise_if_not_found=False)
-        return location and location.id or False
+        StockLocation = self.env['stock.location']
+        stock_locations = StockLocation.search([('name', '=', 'Existencias'),
+                                        ('location_id.name', '=', 'WH/1')])
+        if stock_locations:
+            return stock_locations[0].id
+        else:
+            return False
+
+        #location = self.env.ref('stock.stock_location_stock',
+                                #raise_if_not_found=False)
+        #return location and location.id or False
 
     product_id = fields.Many2one('product.template', 'Product', required=True)
     qty_product = fields.Float('Quantity', required=True, default=1)
