@@ -96,6 +96,16 @@ class MrpIi(models.TransientModel):
                                 #raise_if_not_found=False)
         #return location and location.id or False
 
+    @api.multi
+    @api.onchange('product_id')
+    def onchange_product_id(self):
+        MrpBom = self.env['mrp.bom']
+        mrp_boms = MrpBom.search([
+            ('product_tmpl_id.id', '=', self.product_id.id)])
+        if mrp_boms:
+            self.bom_id = mrp_boms[0].id
+        return {}
+
     product_id = fields.Many2one('product.template', 'Product', required=True)
     qty_product = fields.Float('Quantity', required=True, default=1)
     bill_material_ii_ids = fields.One2many('bill.material.ii',
