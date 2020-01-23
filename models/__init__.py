@@ -20,5 +20,5 @@
 #
 ###############################################################################
 
-import mrp_ii
-import stock
+from . import mrp_ii
+from . import stock
