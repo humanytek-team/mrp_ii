@@ -201,7 +201,7 @@ class BillMaterialIi(models.TransientModel):
                                     ('product_id.id', '=', self.product_id.id),
                                     ('location_id', '=',
                                         self.mrp_ii_id.location_id.id)])
-        self.product_qty_product = sum([stock_quant.qty
+        self.product_qty_product = sum([stock_quant.quantity
                                 for stock_quant in
                                 stock_quants])
 
